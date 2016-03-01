@@ -25,9 +25,45 @@
 
 using namespace cv;
 using namespace std;
+bool drawing_box = false;
+bool gotBB = false;	// got tracking box or not
 
-
-void readConfig(char* configFileName, char* imgFilePath, Rect &box);
+Rect box;//[x y width height] tracking position
+// tracking box mouse callback
+void mouseHandler(int event, int x, int y, int flags, void *param)
+{
+	switch (event)
+	{
+	case CV_EVENT_MOUSEMOVE:
+		if (drawing_box)
+		{
+			box.width = x - box.x;
+			box.height = y - box.y;
+		}
+		break;
+	case CV_EVENT_LBUTTONDOWN:
+		drawing_box = true;
+		box = Rect(x, y, 0, 0);
+		break;
+	case CV_EVENT_LBUTTONUP:
+		drawing_box = false;
+		if (box.width < 0)
+		{
+			box.x += box.width;
+			box.width *= -1;
+		}
+		if (box.height < 0)
+		{
+			box.y += box.height;
+			box.height *= -1;
+		}
+		gotBB = true;
+		break;
+	default:
+		break;
+	}
+}
+void readConfig(char* configFileName, char* imgFilePath);//, Rect &box);
 /*  Description: read the tracking information from file "config.txt"
     Arguments:	
 	-configFileName: config file name
@@ -52,11 +88,11 @@ int main(int argc, char * argv[])
 
 	char tmpDirPath[MAX_PATH+1];
 	
-	Rect box; // [x y width height] tracking position
+	//Rect box; // [x y width height] tracking position
 
 	vector <string> imgNames;
     
-	readConfig(conf,imgFilePath,box);
+	readConfig(conf,imgFilePath);
 	readImageSequenceFiles(imgFilePath,imgNames);
 
 	// CT framework
@@ -68,6 +104,26 @@ int main(int argc, char * argv[])
 	sprintf(tmpDirPath, "%s/", imgFilePath);
 	imgNames[0].insert(0,tmpDirPath);
 	frame = imread(imgNames[0]);
+
+
+	namedWindow("CT", CV_WINDOW_AUTOSIZE);
+	setMouseCallback("CT", mouseHandler, NULL);
+	Mat temp;
+	frame.copyTo(temp);
+	while (!gotBB)
+	{
+	
+		rectangle(frame, box, Scalar(0, 0, 255));
+		imshow("CT", frame);
+		temp.copyTo(frame);
+		if (cvWaitKey(33) == 'q') { return 0; }
+	}
+//	box = box;
+	setMouseCallback("CT", NULL, NULL);
+	printf("Initial Tracking Box = x:%d y:%d h:%d w:%d\n", box.x, box.y, box.width, box.height);
+
+
+
     cvtColor(frame, grayImg, CV_RGB2GRAY);    
 	ct.init(grayImg, box);    
 
@@ -104,7 +160,7 @@ int main(int argc, char * argv[])
 	return 0;
 }
 
-void readConfig(char* configFileName, char* imgFilePath, Rect &box)	
+void readConfig(char* configFileName, char* imgFilePath)// Rect &box)	
 {
 	int x;
 	int y;
@@ -126,14 +182,14 @@ void readConfig(char* configFileName, char* imgFilePath, Rect &box)
 
 	strcpy(imgFilePath,param3);
 
-	f.getline(cstring, sizeof(cstring)); 
-	f.getline(cstring, sizeof(cstring)); 
-	f.getline(cstring, sizeof(cstring));
+	//f.getline(cstring, sizeof(cstring)); 
+	//f.getline(cstring, sizeof(cstring)); 
+	//f.getline(cstring, sizeof(cstring));
 
 
-	readS=sscanf (cstring, "%s %s %i %i %i %i", param1,param2, &x, &y, &w, &h);
+	//readS=sscanf (cstring, "%s %s %i %i %i %i", param1,param2, &x, &y, &w, &h);
 
-	box = Rect(x, y, w, h);
+	//box = Rect(x, y, w, h);
 	
 }
 
